@@ -1,3 +1,4 @@
+#Скрипт настраивает положение света в модели 
 import bpy
 import numpy as np
 import math as m
@@ -20,11 +21,6 @@ class Render:
         self.beta_limits = [80, -80] # Define range of beta angles that the camera is going to pan through
         self.gamma_limits = [0, 360] # Define range of gamma angles that the camera is going to pan through
         
-        ## Output information
-        # Input your own preferred location for the images and labels
-#        self.images_filepath = 'D\:'
-#        self.labels_filepath = 'D:\'
-
     def set_light(self):
         self.light.location = (0, 0, 3)
 
@@ -162,7 +158,7 @@ class Render:
 if __name__ == '__main__':
     # Initialize rendering class as r
     r = Render()
-    # Initialize camera
+    # Initialize light
     r.set_light()
     # Begin data generation
     rotation_step = 5
