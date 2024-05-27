@@ -3,127 +3,273 @@ import numpy as np
 import math as m
 import random
 
+
 ## Main Class
 class Render:
     def __init__(self):
-        ## Scene information
-        # Define the scene information
+        ## Информация о сцене
+        # Определить информацию о сцене
         self.scene = bpy.data.scenes['Scene']
-        # Define the information relevant to the <bpy.data.objects>
-        self.set_camera = bpy.data.objects['Camera']
+        # Определите информацию, относящуюся к <bpy.data.objects>
+        self.camera = bpy.data.objects['Camera']
         self.light = bpy.data.objects['Light']
-        self.obj_names = ['mmm_FaceMesh_LodGroup']
-        self.objects = self.create_objects() # Create list of bpy.data.objects from bpy.data.objects[1] to bpy.data.objects[N]
+        self.obj_names = ['Orla_FaceMesh_LOD0', 'eye_l', 'eye_r']
+        self.eyes = bpy.data.objects['eye_l']
+        self.objects = self.create_objects()  # Создать список bpy.data.objects из bpy.data.objects[1] в bpy.data.objects[N]
 
-        ## Render information
-        self.light_d_limits = [0.2, 0.8] # Define range of heights z in m that the camera is going to pan through
-        self.beta_limits = [80, -80] # Define range of beta angles that the camera is going to pan through
-        self.gamma_limits = [0, 360] # Define range of gamma angles that the camera is going to pan through
-        
-        ## Output information
-        # Input your own preferred location for the images and labels
+        ## Рендеринг информации
+        self.light_d_limits = [0, 2]  # Определите диапазон высот z в метрах, через который будет проходить камера.
+        self.beta_limits = [80, -80]  # Определите диапазон бета-углов, через который будет панорамироваться камера.
+        self.gamma_limits = [0, 360]  # Определите диапазон гамма-углов, через который будет панорамироваться камера.
+
+        ## Вывод информации
+        # Введите предпочитаемое вами местоположение для изображений и меток.
         self.images_filepath = 'D:\чел'
         self.labels_filepath = 'D:\чел'
 
+    def set_eyes(self):
+
+        angle_x = m.radians(random.randint(-15, 15))
+        angle_z = m.radians(random.randint(330, 390))
+
+        self.eye_l.rotation_euler.x = angle_x
+        self.eye_l.rotation_euler.z = angle_z
+        self.eye_l.rotation_euler.y = m.radians(0)
+
+        self.eye_r.rotation_euler.x = angle_x
+        self.eye_r.rotation_euler.z = angle_z
+        self.eye_r.rotation_euler.y = m.radians(0)
+
     def set_light(self):
-        self.light.location = (0, 0, 3)
+        self.light.location = (2, -400, 2)
+
+    def get_all_coordinates(self):
+        '''
+        Эта функция не принимает никаких входных данных и выводит полную строку с координатами
+        всех объектов, видимых на текущем изображении
+        '''
+        main_text_coordinates = ''  # Инициализируем переменную, в которой мы будем хранить координаты.
+        for i, object in enumerate(self.objects):  # Перебрать все объекты
+            print("     On object:", object)
+            b_box = self.find_bounding_box(object)  #Получить координаты текущего объекта
+            if b_box:  # Если find_bounding_box() не возвращает None
+                print("         Initial coordinates:", b_box)
+                text_coordinates = self.format_coordinates(b_box, i)  # Переформатировать координаты в формат YOLOv3.
+                print("         YOLO-friendly coordinates:", text_coordinates)
+                main_text_coordinates = main_text_coordinates + text_coordinates  # Обновите переменные координат основного текста, указав каждую
+                # строку, соответствующую каждому классу в кадре текущего изображения.
+            else:
+                print("         Object not visible")
+                pass
+
+        return main_text_coordinates  # Вернуть все координаты
+    def format_coordinates(self, coordinates, classe):
+        '''
+        Эта функция принимает в качестве входных данных координаты, созданные функцией find_bounding box(), текущий класс,
+        ширину изображения и высоту изображения и выводит координаты ограничивающей рамки текущего класса
+        '''
+        # Если текущий класс находится в поле зрения камеры
+        if coordinates:
+            ## Изменить систему отсчета координат
+            x1 = (coordinates[0][0])
+            x2 = (coordinates[1][0])
+            y1 = (1 - coordinates[1][1])
+            y2 = (1 - coordinates[0][1])
+
+            ## Получите окончательную информацию об ограничивающей рамке
+            width = (x2-x1)  # Вычислить абсолютную ширину ограничивающей рамки
+            height = (y2-y1) # Вычислить абсолютную высоту ограничивающей рамки
+            # Вычислить абсолютную высоту ограничивающей рамки
+            cx = x1 + (width/2)
+            cy = y1 + (height/2)
+
+            ## Сформулируйте линию, соответствующую ограничивающему прямоугольнику одного класса
+            txt_coordinates = str(classe) + ' ' + str(cx) + ' ' + str(cy) + ' ' + str(width) + ' ' + str(height) + '\n'
+
+            return txt_coordinates
+        # Если текущий класс не виден камере, передайте
+        else:
+            pass
+
+    def find_bounding_box(self, obj):
+        """
+        Возвращает ограничивающую рамку пространства камеры объекта-сетки.
+
+        Получает ограничивающую рамку кадра камеры, которая по умолчанию возвращается без применения каких-либо преобразований.
+        Создайте новый объект-сетку на основе self.carre_bleu и отмените все преобразования, чтобы он находился в том же пространстве, что и объект-сетка.
+        рамка камеры. Найдите минимальные/максимальные координаты вершин сетки, видимой в кадре, или «Нет», если сетка не видна.
+
+        :param scene:
+        :param camera_object:
+        :param mesh_object:
+        :return:
+        """
+
+        """ Получите матрицу обратного преобразования. """
+        matrix = self.camera.matrix_world.normalized().inverted()
+        """ Создайте новый блок данных сетки, используя матрицу обратного преобразования, чтобы отменить любые преобразования."""
+        mesh = obj.to_mesh(preserve_all_data_layers=True)
+        mesh.transform(obj.matrix_world)
+        mesh.transform(matrix)
+
+        """ Получите мировые координаты ограничивающей рамки кадра камеры перед любыми преобразованиями. """
+        frame = [-v for v in self.camera.data.view_frame(scene=self.scene)[:3]]
+
+        lx = []
+        ly = []
+
+        for v in mesh.vertices:
+            co_local = v.co
+            z = -co_local.z
+
+            if z <= 0.0:
+                """ Вертекс находится за камерой; игнорируй это. """
+                continue
+            else:
+                """ Перспективное деление"""
+                frame = [(v / (v.z / z)) for v in frame]
+
+            min_x, max_x = frame[1].x, frame[2].x
+            min_y, max_y = frame[0].y, frame[1].y
+
+            x = (co_local.x - min_x) / (max_x - min_x)
+            y = (co_local.y - min_y) / (max_y - min_y)
+
+            lx.append(x)
+            ly.append(y)
+
+        """ Изображение не отображается, если все вершины сетки были проигнорированы. """
+        if not lx or not ly:
+            return None
+
+        min_x = np.clip(min(lx), 0.0, 1.0)
+        min_y = np.clip(min(ly), 0.0, 1.0)
+        max_x = np.clip(max(lx), 0.0, 1.0)
+        max_y = np.clip(max(ly), 0.0, 1.0)
+
+        """ Изображение не отображается, если обе ограничивающие точки находятся на одной стороне. """
+        if min_x == max_x or min_y == max_y:
+            return None
+
+        """ Определите размер визуализированного изображения """
+        render = self.scene.render
+        fac = render.resolution_percentage * 0.01
+        dim_x = render.resolution_x * fac
+        dim_y = render.resolution_y * fac
+
+        ## Убедитесь, что нет координат, равных нулю.
+        coord_list = [min_x, min_y, max_x, max_y]
+        if min(coord_list) == 0.0:
+            indexmin = coord_list.index(min(coord_list))
+            coord_list[indexmin] = coord_list[indexmin] + 0.0000001
+
+        return (min_x, min_y), (max_x, max_y)
 
     def main_rendering_loop(self, rot_step):
         '''
-        This function represent the main algorithm explained in the Tutorial, it accepts the
-        rotation step as input, and outputs the images and the labels to the above specified locations.
+        Эта функция представляет собой основной алгоритм, описанный в руководстве. Она принимает
+        шаг вращения в качестве входных данных и выводит изображения и метки в указанные выше места.
         '''
-        ## Calculate the number of images and labels to generate
-        n_renders = self.calculate_n_renders(rot_step) # Calculate number of images
+        ## Рассчитайте количество изображений и меток для создания
+        n_renders = self.calculate_n_renders(rot_step)  # Рассчитать количество изображений
         print('Number of renders to create:', n_renders)
 
-        #accept_render = input('\nContinue?[Y/N]:  ') # Ask whether to procede with the data generation
+        # accept_render = input('\nContinue?[Y/N]:  ') # Спросите, продолжать ли генерацию данных
         accept_render = 'Y'
-        if accept_render == 'Y': # If the user inputs 'Y' then procede with the data generation
-            # Create .txt file that record the progress of the data generation
-            report_file_path = self.labels_filepath + 'progress_report.txt'
+        if accept_render == 'Y':  # Если пользователь вводит «Y», приступайте к генерации данных.
+            # Создайте файл .txt, в котором записывается ход генерации данных.
+            report_file_path = self.labels_filepath + 'progress_report.json'
             report = open(report_file_path, 'w')
-            # Multiply the limits by 10 to adapt to the for loop
+            # Умножьте пределы на 10, чтобы адаптироваться к циклу for.
             dmin = int(self.light_d_limits[0] * 10)
             dmax = int(self.light_d_limits[1] * 10)
-            # Define a counter to name each .png and .txt files that are outputted
+            # Определите счетчик для именования каждого выводимого файла .png и .txt.
             render_counter = 0
-            # Define the step with which the pictures are going to be taken
+            # Определите шаг, с которым будут делаться снимки.
             rotation_step = rot_step
 
-            # Begin nested loops
-            for d in range(dmin, dmax + 1, 2): # Loop to vary the height of the camera
-                ## Update the height of the camera
-                self.light.location = (0, 0, d/10) # Divide the distance z by 10 to re-factor current height
+            # Начало вложенных циклов
+            for d in range(dmin, dmax + 1, 2):  # Петля для изменения высоты камеры
+                ## Обновить высоту камеры
+                self.light.location = (0, -1, d / 10)  # Разделите расстояние z на 10, чтобы пересчитать текущую высоту.
 
-                # Refactor the beta limits for them to be in a range from 0 to 360 to adapt the limits to the for loop
-                min_beta = (-1)*self.beta_limits[0] + 90
-                max_beta = (-1)*self.beta_limits[1] + 90
+                # Рефакторинг бета-пределов, чтобы они находились в диапазоне от 0 до 360, чтобы адаптировать ограничения к циклу for.
+                min_beta = (-1) * self.beta_limits[0] + 90
+                max_beta = (-1) * self.beta_limits[1] + 90
 
-                for beta in range(min_beta, max_beta + 1, rotation_step): # Loop to vary the angle beta
-                    beta_r = (-1)*beta + 90 # Re-factor the current beta
+                for beta in range(min_beta, max_beta + 1, rotation_step):  # Петля для изменения угла бета
+                    beta_r = (-1) * beta + 90  # Перефакторить текущую бета-версию
 
-                    for gamma in range(self.gamma_limits[0], self.gamma_limits[1] + 1, rotation_step): # Loop to vary the angle gamma
-                        render_counter += 1 # Update counter
-                        
-                        ## Update the rotation of the axis
-                        axis_rotation = (m.radians(beta_r), 0, m.radians(gamma)) 
-                        #self.axis.rotation_euler = axis_rotation # Assign rotation to <bpy.data.objects['Empty']> object
-                        # Display demo information - Location of the camera
-                        print("On render:", render_counter)
-                        print("--> Location of the ligth:")
-                        print("     d:", d/10, "m")
-                        print("     Beta:", str(beta_r)+"Degrees")
-                        print("     Gamma:", str(gamma)+"Degrees")
+                    for gamma in range(self.gamma_limits[0], self.gamma_limits[1] + 1,
+                                       rotation_step):  # Петля для изменения угла гаммы
+                        for angle_x in range(-15, 15, 15):
+                            self.eye_l.rotation_euler.x = m.radians(angle_x)
+                            self.eye_r.rotation_euler.x = m.radians(angle_x)
 
-                        ## Configure lighting можно поставить не рандом а например цикл
-                        energy = random.randint(0, 30) # Grab random light intensity
-                        self.light.data.energy = energy # Update the <bpy.data.objects['Light']> energy information
-       
+                            for angle_z in range(330, 390, 30):
+                                self.eye_l.rotation_euler.z = m.radians(angle_z)
+                                self.eye_r.rotation_euler.z = m.radians(angle_z)
+                                render_counter += 1  # Обновить счетчик
 
-                        ## Generate render
-                        self.render_blender(render_counter) # Take photo of current scene and ouput the render_counter.png file
-                        # Display demo information - Photo information
-                        print("--> Picture information:")
-                        print("     Resolution:", (self.xpix*self.percentage, self.ypix*self.percentage))
-                        print("     Rendering samples:", self.samples)
+                                ## Обновить вращение оси
+                                axis_rotation = (m.radians(beta_r), 0, m.radians(gamma))
+                                # self.axis.rotation_euler = axis_rotation # Назначьте вращение <bpy.data.objects['Empty']> object
+                                # Отображение демонстрационной информации — Расположение камеры
+                                print("On render:", render_counter)
+                                print("--> Location of the ligth:")
+                                print("     d:", d / 10, "m")
+                                print("     Beta:", str(beta_r) + "Degrees")
+                                print("     Gamma:", str(gamma) + "Degrees")
 
-                        ## Output Labels
-                        text_file_name = self.labels_filepath + '/' + str(render_counter) + '.json' # Create label file name
-                        text_file = open(text_file_name, 'w+') # Open .txt file of the label
-                        # Get formatted coordinates of the bounding boxes of all the objects in the scene
-                        # Display demo information - Label construction
-                        print("---> Label Construction")
-                        #text_coordinates = self.get_all_coordinates()
-                        #splitted_coordinates = text_coordinates.split('\n')[:-1] # Delete last '\n' in coordinates
-                        #text_file.write('\n'.join(splitted_coordinates)) # Write the coordinates to the text file and output the render_counter.txt file
-                        #text_file.close() # Close the .txt file corresponding to the label
-                        ## Show progress on batch of renders
-                        print('Progress =', str(render_counter) + '/' + str(n_renders))
-                        report.write('Progress: ' + str(render_counter) + ' Rotation: ' + str(axis_rotation) + ' z_d: ' + str(d / 10) + '\n')
+                                ## Configure lighting можно поставить не рандом а например цикл
+                                energy = random.randint(0, 30)  # Захват случайной интенсивности света
+                                self.light.data.energy = energy  # Обновите <bpy.data.objects['Light']> energy information
 
-            report.close() # Close the .txt file corresponding to the report
+                                ## Создать рендер
+                                self.render_blender(
+                                    render_counter)  # Сфотографируйте текущую сцену и выведите файл render counter.png
+                                # Отображение демонстрационной информации — Информация о фотографии
+                                print("--> Picture information:")
+                                print("     Resolution:", (self.xpix * self.percentage, self.ypix * self.percentage))
+                                print("     Rendering samples:", self.samples)
+
+                                ## Output Labels
+                                text_file_name = self.labels_filepath + '/' + str(
+                                    render_counter) + '.json'  # Создать имя файла этикетки
+                                text_file = open(text_file_name, 'w+')  # Открыть .txt-файл этикетки
+                                 # Получить отформатированные координаты ограничивающих рамок всех объектов сцены
+                                 # Отображение демонстрационной информации - Создание этикетки
+                                print("---> Label Construction")
+                                text_coordinates = self.get_all_coordinates()
+                                splitted_coordinates = text_coordinates.split('\n')[:-1]  # Удалить последний '\n' в координатах
+                                text_file.write('\n'.join(splitted_coordinates))  # Запишите координаты в текстовый файл и выведите файл render_counter.txt.
+                                text_file.close()  # Закройте файл .txt, соответствующий метке.
+                                ## Показать ход выполнения пакета рендеринга
+                                print('Progress =', str(render_counter) + '/' + str(n_renders))
+                                report.write('Progress: ' + str(render_counter) + ' Rotation: ' + str(axis_rotation) + ' z_d: ' + str(d / 10) + '\n')
+
+            report.close()  # Закройте файл .txt, соответствующий отчету.
 
     def render_blender(self, count_f_name):
-        # Define random parameters
-        random.seed(random.randint(1,10))
+        # Определить случайные параметры
+        random.seed(random.randint(1, 10))
         self.xpix = 1000
         self.ypix = 1000
         self.percentage = 100
         self.samples = 15
-        # Render images
+        # Рендеринг изображений
         image_name = str(count_f_name) + '.png'
         self.export_render(self.xpix, self.ypix, self.percentage, self.samples, self.images_filepath, image_name)
 
     def export_render(self, res_x, res_y, res_per, samples, file_path, file_name):
-        # Set all scene parameters
+        # Установите все параметры сцены
         bpy.context.scene.cycles.samples = samples
         self.scene.render.resolution_x = res_x
         self.scene.render.resolution_y = res_y
         self.scene.render.resolution_percentage = res_per
-        self.scene.render.filepath =  file_path + '/' + file_name
+        self.scene.render.filepath = file_path + '/' + file_name
 
-        # Take picture of current visible scene
+        #Сфотографировать текущую видимую сцену
         bpy.ops.render.render(write_still=True)
 
     def calculate_n_renders(self, rotation_step):
@@ -133,33 +279,35 @@ class Render:
         render_counter = 0
         rotation_step = rotation_step
 
-        for d in range(zmin, zmax+1, 2):
-            light_location = (0,0,d/10)
-            min_beta = (-1)*self.beta_limits[0] + 90
-            max_beta = (-1)*self.beta_limits[1] + 90
+        for d in range(zmin, zmax + 1, 2):
+            light_location = (0, 0, d / 10)
+            min_beta = (-1) * self.beta_limits[0] + 90
+            max_beta = (-1) * self.beta_limits[1] + 90
 
-            for beta in range(min_beta, max_beta+1,rotation_step):
+            for beta in range(min_beta, max_beta + 1, rotation_step):
                 beta_r = 90 - beta
 
-                for gamma in range(self.gamma_limits[0], self.gamma_limits[1]+1,rotation_step):
+                for gamma in range(self.gamma_limits[0], self.gamma_limits[1] + 1, rotation_step):
                     render_counter += 1
                     axis_rotation = (beta_r, 0, gamma)
 
         return render_counter
 
-    def create_objects(self):  # This function creates a list of all the <bpy.data.objects>
+    def create_objects(self):  # Эта функция создает список всех <bpy.data.objects>.
         objs = []
         for obj in self.obj_names:
             objs.append(bpy.data.objects[obj])
 
         return objs
 
-## Run data generation
+
+## Запустить генерацию данных
 if __name__ == '__main__':
-    # Initialize rendering class as r
+    # Инициализировать класс рендеринга как r
     r = Render()
-    # Initialize light
+    # Инициализировать свет
     r.set_light()
-    # Begin data generation
-    rotation_step = 120 #(360/x)*(160/x)*4
+    r.set_eyes()
+    # Начать генерацию данных
+    rotation_step = 10000  # (360/x)*(160/x)*4
     r.main_rendering_loop(rotation_step)
