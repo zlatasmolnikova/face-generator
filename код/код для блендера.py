@@ -232,6 +232,65 @@ class Render:
         return (min_x, min_y), (max_x, max_y)
     
 
+    
+    def get_axes(angles):
+        
+        return rotate_points(np.array([
+            [1, 0, 0], [0, 1, 0], [0, 0, -1]
+        ]), np.array(angles))[:, :2]
+
+    
+    def rotate_angles(angles, roll=0, yaw=0, pitch=0):
+
+        return rotmat_to_angles(
+            rotate_points(
+                rotate_points(np.eye(3), angles), 
+                [pitch, yaw, roll]
+            )
+        ).astype(np.float32)
+
+    def draw_angles(self, image, line_size=40, thickness=2):
+        "angles: (pitch, yaw, roll)"
+        RED = (0, 0, 255)
+        GREEN = (0, 255, 0)
+        BLUE = (255, 0, 0)
+        
+                
+        angles = [3, 2, 3]
+        angles = np.array(angles)
+                
+        points = np.array([
+                    [1, 0, 0], [0, 1, 0], [0, 0, -1]
+                ])
+        (pitch, yaw, roll) = np.radians(angles)
+
+        xr = np.array([
+        [1, 0, 0],
+        [0, np.cos(pitch), np.sin(pitch)],
+        [0, -np.sin(pitch), np.cos(pitch)]
+    ])
+        yr = np.array([
+        [np.cos(yaw), 0, -np.sin(yaw)],
+        [0, 1, 0],
+        [np.sin(yaw), 0, np.cos(yaw)]
+    ])
+        zr = np.array([
+        [np.cos(roll), np.sin(roll), 0],
+        [-np.sin(roll), np.cos(roll), 0],
+        [0, 0, 1]
+    ])
+
+        rotate_points = points @ (zr@yr@xr)
+        rotate_points = rotate_points[:,:2]
+        
+        pos = np.array([100,100], dtype=int)
+        axis = (line_size*rotate_points).astype(int)
+
+        
+        for (point, color) in zip(axis, [RED, GREEN, BLUE]):
+            image = cv2.line(image, tuple(pos), tuple(pos + point), color, thickness)
+
+        return image
 
     def main_rendering_loop(self, rot_step):
         '''
@@ -316,11 +375,14 @@ class Render:
                                                 self.light.data.energy = energy  # Обновите <bpy.data.objects['Light']> energy information
 
                                                 ## Создать рендер
+        
+                                                image_path = self.render_blender(render_counter)
+                                                image = cv2.imread(image_path)  
                                                 
-                                                self.render_blender(render_counter)
-                                                  # Сфотографируйте текущую сцену и выведите файл render counter.png
+                                                image = self.draw_angles(image)
+                                                cv2.imwrite(f"D:\блендер\чел\{render_counter}.png", image)
+                                                
                                                 # Отображение демонстрационной информации — Информация о фотографии
-                                                
                                                 print("--> Picture information:")
                                                 print("     Resolution:", (self.xpix * self.percentage, self.ypix * self.percentage))
                                                 print("     Rendering samples:", self.samples)
@@ -358,7 +420,8 @@ class Render:
         # Рендеринг изображений
         image_name = str(count_f_name) + '.png'
         self.export_render(self.xpix, self.ypix, self.percentage, self.samples, self.images_filepath, image_name)
-
+        return f"D:\блендер\чел\{image_name}"
+        
     def export_render(self, res_x, res_y, res_per, samples, file_path, file_name):
         # Установите все параметры сцены
         bpy.context.scene.cycles.samples = samples
