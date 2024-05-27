@@ -2,7 +2,9 @@ import bpy
 import numpy as np
 import math as m
 import random
-
+import sys
+sys.path.append("C:\\Users\\79538\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python38\\site-packages\\cv2")
+import cv2
 
 ## Main Class
 class Render:
@@ -13,38 +15,68 @@ class Render:
         # Определите информацию, относящуюся к <bpy.data.objects>
         self.camera = bpy.data.objects['Camera']
         self.light = bpy.data.objects['Light']
-        self.obj_names = ['neck', 'eye_l', 'eye_r', 'face', 'face_3', 'hair']
-        self.face = bpy.data.objects['face']
+        self.obj_names = ['neck', 'eye_l', 'eye_r', 'skin', 'mouth', 'mouth_2', 'mouth_3', 'hair', 'eye_lashes1', 'eye_lashes2', 'eye_l_1', 'eye_r_1']
+        self.face = bpy.data.objects['skin']
         self.eye_l = bpy.data.objects['eye_l']
         self.eye_r = bpy.data.objects['eye_r']
         self.objects = self.create_objects()  # Создать список bpy.data.objects из bpy.data.objects[1] в bpy.data.objects[N]
                 
         # Выберем основной объект
-        main_object = bpy.data.objects['face']# Выберем объект, который хотим привязать к основному
+        main_object = bpy.data.objects['skin']# Выберем объект, который хотим привязать к основному
         child_object1 = bpy.data.objects['eye_l']
         child_object2 = bpy.data.objects['eye_r']
-        child_object3 = bpy.data.objects['face_3']
-        child_object4 = bpy.data.objects['hair']
+        child_object3 = bpy.data.objects['mouth_2']
+        child_object4 = bpy.data.objects['mouth_3']
+        child_object5 = bpy.data.objects['eye_lashes1']
+        child_object6 = bpy.data.objects['eye_lashes2']
+        child_object7 = bpy.data.objects['mouth']
+        child_object8 = bpy.data.objects['hair']
+        child_object9 = bpy.data.objects['eye_l_1']
+        child_object10 = bpy.data.objects['eye_r_1']
         # Добавим констрейнт "Child Of" к child_object
         constraint1 = child_object1.constraints.new('CHILD_OF')
         constraint1.target = main_object
         constraint1.inverse_matrix = main_object.matrix_world.inverted()
         # Применяем констрейнт
-        bpy.context.view_layer.update()
+
         
         constraint2 = child_object2.constraints.new('CHILD_OF')
         constraint2.target = main_object
         constraint2.inverse_matrix = main_object.matrix_world.inverted()
-        bpy.context.view_layer.update()
+
         
         constraint3 = child_object3.constraints.new('CHILD_OF')
         constraint3.target = main_object
         constraint3.inverse_matrix = main_object.matrix_world.inverted()
-        bpy.context.view_layer.update()
+
         
         constraint4 = child_object4.constraints.new('CHILD_OF')
         constraint4.target = main_object
         constraint4.inverse_matrix = main_object.matrix_world.inverted()
+        
+        constraint5 = child_object5.constraints.new('CHILD_OF')
+        constraint5.target = main_object
+        constraint5.inverse_matrix = main_object.matrix_world.inverted()
+        
+        constraint6 = child_object6.constraints.new('CHILD_OF')
+        constraint6.target = main_object
+        constraint6.inverse_matrix = main_object.matrix_world.inverted()
+        
+        constraint7 = child_object7.constraints.new('CHILD_OF')
+        constraint7.target = main_object
+        constraint7.inverse_matrix = main_object.matrix_world.inverted()
+        
+        constraint8 = child_object8.constraints.new('CHILD_OF')
+        constraint8.target = main_object
+        constraint8.inverse_matrix = main_object.matrix_world.inverted()
+        
+        constraint9 = child_object9.constraints.new('CHILD_OF')
+        constraint9.target = main_object
+        constraint9.inverse_matrix = main_object.matrix_world.inverted()
+        
+        constraint10 = child_object10.constraints.new('CHILD_OF')
+        constraint10.target = main_object
+        constraint10.inverse_matrix = main_object.matrix_world.inverted()
         bpy.context.view_layer.update()
         # Теперь child_object будет следовать за main_object во всех перемещениях и трансформациях
         
@@ -56,8 +88,10 @@ class Render:
 
         ## Вывод информации
         # Введите предпочитаемое вами местоположение для изображений и меток.
-        self.images_filepath = 'D:\чел'
-        self.labels_filepath = 'D:\чел'
+        self.images_filepath = 'D:\блендер\чел'
+        self.labels_filepath = 'D:\блендер\чел'
+        
+        
 
     def set_eyes(self):
 
@@ -196,6 +230,8 @@ class Render:
             coord_list[indexmin] = coord_list[indexmin] + 0.0000001
 
         return (min_x, min_y), (max_x, max_y)
+    
+
 
     def main_rendering_loop(self, rot_step):
         '''
@@ -205,92 +241,112 @@ class Render:
         ## Рассчитайте количество изображений и меток для создания
         n_renders = self.calculate_n_renders(rot_step)  # Рассчитать количество изображений
         print('Number of renders to create:', n_renders)
-
+    
         # accept_render = input('\nContinue?[Y/N]:  ') # Спросите, продолжать ли генерацию данных
         accept_render = 'Y'
+        
+        
+        a = 1
+        pos = np.array([0, 0])  # Координаты позиции
+        angles = [1, 2, 3]  # Углы поворота в радианах
         if accept_render == 'Y':  # Если пользователь вводит «Y», приступайте к генерации данных.
-            # Создайте файл .txt, в котором записывается ход генерации данных.
+                    # Создайте файл .txt, в котором записывается ход генерации данных.
             report_file_path = self.labels_filepath + 'progress_report.json'
             report = open(report_file_path, 'w')
-            # Умножьте пределы на 10, чтобы адаптироваться к циклу for.
+                    # Умножьте пределы на 10, чтобы адаптироваться к циклу for.
             dmin = int(self.light_d_limits[0] * 10)
             dmax = int(self.light_d_limits[1] * 10)
-            # Определите счетчик для именования каждого выводимого файла .png и .txt.
+                    # Определите счетчик для именования каждого выводимого файла .png и .txt.
             render_counter = 0
-            # Определите шаг, с которым будут делаться снимки.
+                    # Определите шаг, с которым будут делаться снимки.
             rotation_step = rot_step
-
+            
+            
             # Начало вложенных циклов
-            for d in range(dmin, dmax + 1, 2):  # Петля для изменения высоты камеры
-                ## Обновить высоту камеры
-                self.light.location = (0, -1, d / 10)  # Разделите расстояние z на 10, чтобы пересчитать текущую высоту.
+            
+            while render_counter == 0:
+                for d in range(dmin, dmax + 1, 2):  # Петля для изменения высоты камеры
+                    ## Обновить высоту камеры
+                    self.light.location = (0, -1, d / 10)  # Разделите расстояние z на 10, чтобы пересчитать текущую высоту.
 
-                # Рефакторинг бета-пределов, чтобы они находились в диапазоне от 0 до 360, чтобы адаптировать ограничения к циклу for.
-                min_beta = (-1) * self.beta_limits[0] + 90
-                max_beta = (-1) * self.beta_limits[1] + 90
+                    # Рефакторинг бета-пределов, чтобы они находились в диапазоне от 0 до 360, чтобы адаптировать ограничения к циклу for.
+                    min_beta = (-1) * self.beta_limits[0] + 90
+                    max_beta = (-1) * self.beta_limits[1] + 90
+                   
 
-                for beta in range(min_beta, max_beta + 1, rotation_step):  # Петля для изменения угла бета
-                    beta_r = (-1) * beta + 90  # Перефакторить текущую бета-версию
+                    for beta in range(min_beta, max_beta + 1, rotation_step):  # Петля для изменения угла бета
+                        beta_r = (-1) * beta + 90  # Перефакторить текущую бета-версию
 
-                    for gamma in range(self.gamma_limits[0], self.gamma_limits[1] + 1,
-                                       rotation_step):  # Петля для изменения угла гаммы
-                        for angle_x in range(-7, 10, 9):
-                            self.eye_l.rotation_euler.x = m.radians(angle_x)
-                            self.eye_r.rotation_euler.x = m.radians(angle_x)
+                        for gamma in range(self.gamma_limits[0], self.gamma_limits[1] + 1,
+                                           rotation_step):  # Петля для изменения угла гаммы
+                            for angle_x in range(-7, 10, 9):
+                                self.eye_l.rotation_euler.x = m.radians(angle_x)
+                                self.eye_r.rotation_euler.x = m.radians(angle_x)
 
-                            for angle_z in range(345, 375, 15):
-                                self.eye_l.rotation_euler.z = m.radians(angle_z)
-                                self.eye_r.rotation_euler.z = m.radians(angle_z)
-                                
-                                for x in range(-20, 20, 15):
-                                    self.face.rotation_euler.x = m.radians(x)
+                                for angle_z in range(345, 375, 15):
+                                    self.eye_l.rotation_euler.z = m.radians(angle_z)
+                                    self.eye_r.rotation_euler.z = m.radians(angle_z)
                                     
-                                    for y in range(-10, 10, 7):
-                                        self.face.rotation_euler.y = m.radians(y)
+                                    for x in range(-20, 20, 15):
+                                        self.face.rotation_euler.x = m.radians(x)
                                         
-                                        for z in range(-20, 20, 15):
-                                            self.face.rotation_euler.z = m.radians(z)
+                                        for y in range(-10, 10, 7):
+                                            self.face.rotation_euler.y = m.radians(y)
                                             
-                                            render_counter += 1  # Обновить счетчик
+                                            for z in range(-20, 20, 15):
+                                                self.face.rotation_euler.z = m.radians(z)
+                                                
+                                                if a > 5:
+                                                    exit()
+                                                
+                                                render_counter += 1  # Обновить счетчик
+                                                
+                                                ## Обновить вращение оси
+                                                axis_rotation = (m.radians(beta_r), 0, m.radians(gamma))
+                                                # self.axis.rotation_euler = axis_rotation # Назначьте вращение <bpy.data.objects['Empty']> object
+                                                # Отображение демонстрационной информации — Расположение камеры
+                                                print("On render:", render_counter)
+                                                print("--> Location of the ligth:")
+                                                print("     d:", d / 10, "m")
+                                                print("     Beta:", str(beta_r) + "Degrees")
+                                                print("     Gamma:", str(gamma) + "Degrees")
 
-                                            ## Обновить вращение оси
-                                            axis_rotation = (m.radians(beta_r), 0, m.radians(gamma))
-                                            # self.axis.rotation_euler = axis_rotation # Назначьте вращение <bpy.data.objects['Empty']> object
-                                            # Отображение демонстрационной информации — Расположение камеры
-                                            print("On render:", render_counter)
-                                            print("--> Location of the ligth:")
-                                            print("     d:", d / 10, "m")
-                                            print("     Beta:", str(beta_r) + "Degrees")
-                                            print("     Gamma:", str(gamma) + "Degrees")
+                                                ## Configure lighting можно поставить не рандом а например цикл
+                                                energy = random.randint(0, 30)  # Захват случайной интенсивности света
+                                                self.light.data.energy = energy  # Обновите <bpy.data.objects['Light']> energy information
 
-                                            ## Configure lighting можно поставить не рандом а например цикл
-                                            energy = random.randint(0, 30)  # Захват случайной интенсивности света
-                                            self.light.data.energy = energy  # Обновите <bpy.data.objects['Light']> energy information
+                                                ## Создать рендер
+                                                
+                                                self.render_blender(render_counter)
+                                                  # Сфотографируйте текущую сцену и выведите файл render counter.png
+                                                # Отображение демонстрационной информации — Информация о фотографии
+                                                
+                                                print("--> Picture information:")
+                                                print("     Resolution:", (self.xpix * self.percentage, self.ypix * self.percentage))
+                                                print("     Rendering samples:", self.samples)
 
-                                            ## Создать рендер
-                                            self.render_blender(
-                                                render_counter)  # Сфотографируйте текущую сцену и выведите файл render counter.png
-                                            # Отображение демонстрационной информации — Информация о фотографии
-                                            print("--> Picture information:")
-                                            print("     Resolution:", (self.xpix * self.percentage, self.ypix * self.percentage))
-                                            print("     Rendering samples:", self.samples)
-
-                                            ## Output Labels
-                                            text_file_name = self.labels_filepath + '/' + str(
-                                                render_counter) + '.json'  # Создать имя файла этикетки
-                                            text_file = open(text_file_name, 'w+')  # Открыть .txt-файл этикетки
-                                             # Получить отформатированные координаты ограничивающих рамок всех объектов сцены
-                                             # Отображение демонстрационной информации - Создание этикетки
-                                            print("---> Label Construction")
-                                            text_coordinates = self.get_all_coordinates()
-                                            splitted_coordinates = text_coordinates.split('\n')[:-1]  # Удалить последний '\n' в координатах
-                                            text_file.write('\n'.join(splitted_coordinates))  # Запишите координаты в текстовый файл и выведите файл render_counter.txt.
-                                            text_file.close()  # Закройте файл .txt, соответствующий метке.
-                                            ## Показать ход выполнения пакета рендеринга
-                                            print('Progress =', str(render_counter) + '/' + str(n_renders))
-                                            report.write('Progress: ' + str(render_counter) + ' Rotation: ' + str(axis_rotation) + ' z_d: ' + str(d / 10) + '\n')
-
-            report.close()  # Закройте файл .txt, соответствующий отчету.
+                                                ## Output Labels
+                                                text_file_name = self.labels_filepath + '/' + str(
+                                                    render_counter) + '.json'  # Создать имя файла этикетки
+                                                text_file = open(text_file_name, 'w+')  # Открыть .txt-файл этикетки
+                                                 # Получить отформатированные координаты ограничивающих рамок всех объектов сцены
+                                                 # Отображение демонстрационной информации - Создание этикетки
+                                                print("---> Label Construction")
+                                                text_coordinates = self.get_all_coordinates()
+                                                splitted_coordinates = text_coordinates.split('\n')[:-1]  # Удалить последний '\n' в координатах
+                                                text_file.write('\n'.join(splitted_coordinates))  # Запишите координаты в текстовый файл и выведите файл render_counter.txt.
+                                                text_file.close()  # Закройте файл .txt, соответствующий метке.
+                                                ## Показать ход выполнения пакета рендеринга
+                                                print('Progress =', str(render_counter) + '/' + str(n_renders))
+                                                report.write('Progress: ' + str(render_counter) + ' Rotation: ' + str(axis_rotation) + ' z_d: ' + str(d / 10) + '\n')
+                                                
+                                                
+                                                
+                                                a += 1
+                                            
+                report.close()  # Закройте файл .txt, соответствующий отчету.
+                
+            
 
     def render_blender(self, count_f_name):
         # Определить случайные параметры
