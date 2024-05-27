@@ -18,8 +18,6 @@ class Render:
         self.eye_l = bpy.data.objects['eye_l']
         self.eye_r = bpy.data.objects['eye_r']
         self.objects = self.create_objects()  # Создать список bpy.data.objects из bpy.data.objects[1] в bpy.data.objects[N]
-        
-
                 
         # Выберем основной объект
         main_object = bpy.data.objects['face']# Выберем объект, который хотим привязать к основному
@@ -236,7 +234,7 @@ class Render:
 
                     for gamma in range(self.gamma_limits[0], self.gamma_limits[1] + 1,
                                        rotation_step):  # Петля для изменения угла гаммы
-                        for angle_x in range(-15, 15, 15):
+                        for angle_x in range(-7, 10, 9):
                             self.eye_l.rotation_euler.x = m.radians(angle_x)
                             self.eye_r.rotation_euler.x = m.radians(angle_x)
 
