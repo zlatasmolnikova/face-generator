@@ -232,22 +232,79 @@ class Render:
         return (min_x, min_y), (max_x, max_y)
     
 
+    def rotate_points(self, points, angles):
+        """
+        Rotate 3D points on angles.
+
+        Rotation sequence: OZ(roll), OY(yaw), OX(pitch)
+
+        Arguments:
+            - points (np.array[:, 3]):
+                keypoints [[x1, y1, z1], ...]
+            - angles (np.array[3]):
+                angles [pitch, yaw, roll], in degrees
+
+        Returns:
+            rotated points, np.array[:, 3]
+        """
+        (pitch, yaw, roll) = np.radians(angles)
+
+        xr = np.array([
+            [1, 0, 0],
+            [0, np.cos(pitch), np.sin(pitch)],
+            [0, -np.sin(pitch), np.cos(pitch)]
+        ])
+        yr = np.array([
+            [np.cos(yaw), 0, -np.sin(yaw)],
+            [0, 1, 0],
+            [np.sin(yaw), 0, np.cos(yaw)]
+        ])
+        zr = np.array([
+            [np.cos(roll), np.sin(roll), 0],
+            [-np.sin(roll), np.cos(roll), 0],
+            [0, 0, 1]
+        ])
+
+        return points @ (zr@yr@xr)
+
+    def rotmat_to_angles(self, m):
+        if abs(m[2, 0] + 1) <= 1e-9:
+            return np.degrees([
+                -np.arctan2(m[0, 1], m[0, 2]),
+                -np.pi/2,
+                0
+            ])
+
+        if abs(m[2, 0] - 1) <= 1e-9:
+            return np.degrees([
+                -np.arctan2(-m[0, 1], -m[0, 2]),
+                np.pi/2,
+                0
+            ])
+
+        return np.degrees([
+            -np.arctan2(m[2, 1], m[2, 2]),
+            np.arcsin(m[2, 0]),
+            -np.arctan2(m[1, 0], m[0, 0])
+        ])
     
-    def get_axes(angles):
+    def rotate_angles(self, angles, pitch, yaw, roll):
+        """
+        Rotate angles on angle.
+
+        Arguments:
+            - angles (np.array[3]):
+                angles [pitch, yaw, roll], in degrees
+            - pitch, yaw, roll (float):
+                angles, in degrees
+
+        Returns:
+            rotated angles, np.array[3], in degrees
+        """
         
-        return rotate_points(np.array([
-            [1, 0, 0], [0, 1, 0], [0, 0, -1]
-        ]), np.array(angles))[:, :2]
-
-    
-    def rotate_angles(angles, roll=0, yaw=0, pitch=0):
-
-        return rotmat_to_angles(
-            rotate_points(
-                rotate_points(np.eye(3), angles), 
-                [pitch, yaw, roll]
-            )
-        ).astype(np.float32)
+        
+        rotated_points = self.rotate_points(np.eye(3), angles)
+        return self.rotmat_to_angles(self.rotate_points(rotated_points, [pitch, yaw, roll])).astype(np.float32)
 
     def draw_angles(self, image, line_size=40, thickness=2):
         "angles: (pitch, yaw, roll)"
@@ -255,40 +312,32 @@ class Render:
         GREEN = (0, 255, 0)
         BLUE = (255, 0, 0)
         
-                
-        angles = [3, 2, 3]
+        rotation = self.face.rotation_euler
+        rotation_degrees = [m.degrees(r) for r in rotation]
+        (pitch, yaw, roll) = np.array(rotation_degrees)
+#        pitch = -20
+#        yaw = -10
+#        roll = -20
+        roll = -roll
+        
+#        angles = [m.degrees(r) for r in rotation]
+        angles = [4.65, 3.79, -3.13]
         angles = np.array(angles)
                 
-        points = np.array([
-                    [1, 0, 0], [0, 1, 0], [0, 0, -1]
-                ])
-        (pitch, yaw, roll) = np.radians(angles)
+        rotated_angles = self.rotate_angles(angles, pitch, yaw, roll)
 
-        xr = np.array([
-        [1, 0, 0],
-        [0, np.cos(pitch), np.sin(pitch)],
-        [0, -np.sin(pitch), np.cos(pitch)]
-    ])
-        yr = np.array([
-        [np.cos(yaw), 0, -np.sin(yaw)],
-        [0, 1, 0],
-        [np.sin(yaw), 0, np.cos(yaw)]
-    ])
-        zr = np.array([
-        [np.cos(roll), np.sin(roll), 0],
-        [-np.sin(roll), np.cos(roll), 0],
-        [0, 0, 1]
-    ])
-
-        rotate_points = points @ (zr@yr@xr)
-        rotate_points = rotate_points[:,:2]
+        rot_points = self.rotate_points(np.array([
+        [1, 0, 0], [0, 1, 0], [0, 0, -1]
+    ]), np.array(rotated_angles))[:, :2]
+        
         
         pos = np.array([100,100], dtype=int)
-        axis = (line_size*rotate_points).astype(int)
+        axis = (line_size*rot_points).astype(int)
 
         
         for (point, color) in zip(axis, [RED, GREEN, BLUE]):
             image = cv2.line(image, tuple(pos), tuple(pos + point), color, thickness)
+            
 
         return image
 
@@ -306,8 +355,6 @@ class Render:
         
         
         a = 1
-        pos = np.array([0, 0])  # Координаты позиции
-        angles = [1, 2, 3]  # Углы поворота в радианах
         if accept_render == 'Y':  # Если пользователь вводит «Y», приступайте к генерации данных.
                     # Создайте файл .txt, в котором записывается ход генерации данных.
             report_file_path = self.labels_filepath + 'progress_report.json'
@@ -324,8 +371,8 @@ class Render:
             # Начало вложенных циклов
             
             while render_counter == 0:
-                for d in range(dmin, dmax + 1, 2):  # Петля для изменения высоты камеры
-                    ## Обновить высоту камеры
+                for d in range(dmin, dmax + 1, 2):  # Петля для изменения высоты света
+                    ## Обновить высоту света
                     self.light.location = (0, -1, d / 10)  # Разделите расстояние z на 10, чтобы пересчитать текущую высоту.
 
                     # Рефакторинг бета-пределов, чтобы они находились в диапазоне от 0 до 360, чтобы адаптировать ограничения к циклу for.
@@ -355,7 +402,7 @@ class Render:
                                             for z in range(-20, 20, 15):
                                                 self.face.rotation_euler.z = m.radians(z)
                                                 
-                                                if a > 5:
+                                                if a > 3:
                                                     exit()
                                                 
                                                 render_counter += 1  # Обновить счетчик
@@ -375,13 +422,13 @@ class Render:
                                                 self.light.data.energy = energy  # Обновите <bpy.data.objects['Light']> energy information
 
                                                 ## Создать рендер
-        
+                                                self.render_blender(render_counter)
                                                 image_path = self.render_blender(render_counter)
                                                 image = cv2.imread(image_path)  
                                                 
                                                 image = self.draw_angles(image)
                                                 cv2.imwrite(f"D:\блендер\чел\{render_counter}.png", image)
-                                                
+                                                  # Сфотографируйте текущую сцену и выведите файл render counter.png
                                                 # Отображение демонстрационной информации — Информация о фотографии
                                                 print("--> Picture information:")
                                                 print("     Resolution:", (self.xpix * self.percentage, self.ypix * self.percentage))
@@ -405,7 +452,7 @@ class Render:
                                                 
                                                 
                                                 a += 1
-                                            
+                                
                 report.close()  # Закройте файл .txt, соответствующий отчету.
                 
             
@@ -460,6 +507,21 @@ class Render:
             objs.append(bpy.data.objects[obj])
 
         return objs
+    
+    def pr(self):
+        "angles: (pitch, yaw, roll)"
+        RED = (0, 0, 255)
+        GREEN = (0, 255, 0)
+        BLUE = (255, 0, 0)
+        
+        rotation = self.face.rotation_euler
+        rotation_degrees = [m.degrees(r) for r in rotation]
+        (pitch, yaw, roll) = np.array(rotation_degrees)
+            
+
+        print(rotation)
+        print(rotation_degrees)
+        print(yaw)
 
 
 ## Запустить генерацию данных
@@ -472,3 +534,4 @@ if __name__ == '__main__':
     # Начать генерацию данных
     rotation_step = 1000000  # (360/x)*(160/x)*4
     r.main_rendering_loop(rotation_step)
+#    r.pr()
