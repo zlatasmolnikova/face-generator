@@ -19,6 +19,8 @@ class Render:
         self.face = bpy.data.objects['skin']
         self.eye_l = bpy.data.objects['eye_l']
         self.eye_r = bpy.data.objects['eye_r']
+        self.eye_l_1 = bpy.data.objects['eye_l_1']
+        self.eye_r_1 = bpy.data.objects['eye_r_1']
         self.objects = self.create_objects()  # Создать список bpy.data.objects из bpy.data.objects[1] в bpy.data.objects[N]
                 
         # Выберем основной объект
@@ -385,14 +387,19 @@ class Render:
 
                         for gamma in range(self.gamma_limits[0], self.gamma_limits[1] + 1,
                                            rotation_step):  # Петля для изменения угла гаммы
+                                               
                             for angle_x in range(-7, 10, 9):
                                 self.eye_l.rotation_euler.x = m.radians(angle_x)
                                 self.eye_r.rotation_euler.x = m.radians(angle_x)
+                                self.eye_l_1.rotation_euler.x = m.radians(angle_x)
+                                self.eye_r_1.rotation_euler.x = m.radians(angle_x)
 
                                 for angle_z in range(345, 375, 15):
                                     self.eye_l.rotation_euler.z = m.radians(angle_z)
                                     self.eye_r.rotation_euler.z = m.radians(angle_z)
-                                    
+                                    self.eye_l_1.rotation_euler.z = m.radians(angle_z)
+                                    self.eye_r_1.rotation_euler.z = m.radians(angle_z)
+                             
                                     for x in range(-20, 20, 15):
                                         self.face.rotation_euler.x = m.radians(x)
                                         
@@ -401,10 +408,7 @@ class Render:
                                             
                                             for z in range(-20, 20, 15):
                                                 self.face.rotation_euler.z = m.radians(z)
-                                                
-                                                if a > 3:
-                                                    exit()
-                                                
+             
                                                 render_counter += 1  # Обновить счетчик
                                                 
                                                 ## Обновить вращение оси
@@ -422,7 +426,7 @@ class Render:
                                                 self.light.data.energy = energy  # Обновите <bpy.data.objects['Light']> energy information
 
                                                 ## Создать рендер
-                                                self.render_blender(render_counter)
+                                                #self.render_blender(render_counter)
                                                 image_path = self.render_blender(render_counter)
                                                 image = cv2.imread(image_path)  
                                                 
@@ -450,7 +454,8 @@ class Render:
                                                 report.write('Progress: ' + str(render_counter) + ' Rotation: ' + str(axis_rotation) + ' z_d: ' + str(d / 10) + '\n')
                                                 
                                                 
-                                                
+                                                if a > 5:
+                                                    exit()
                                                 a += 1
                                 
                 report.close()  # Закройте файл .txt, соответствующий отчету.
@@ -530,7 +535,7 @@ if __name__ == '__main__':
     r = Render()
     # Инициализировать свет
     r.set_light()
-    r.set_eyes()
+#    r.set_eyes()
     # Начать генерацию данных
     rotation_step = 1000000  # (360/x)*(160/x)*4
     r.main_rendering_loop(rotation_step)
