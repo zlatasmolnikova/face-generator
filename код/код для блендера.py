@@ -313,32 +313,58 @@ class Render:
         RED = (0, 0, 255)
         GREEN = (0, 255, 0)
         BLUE = (255, 0, 0)
+        angles = [4.65, 3.79, -3.13]
+        angles = np.array(angles)
+                
+        
         
         rotation = self.face.rotation_euler
         rotation_degrees = [m.degrees(r) for r in rotation]
         (pitch, yaw, roll) = np.array(rotation_degrees)
-#        pitch = -20
-#        yaw = -10
-#        roll = -20
         roll = -roll
         
-#        angles = [m.degrees(r) for r in rotation]
-        angles = [4.65, 3.79, -3.13]
-        angles = np.array(angles)
-                
+        rotation_l = self.eye_l_1.rotation_euler
+        rotation_degrees_l = [m.degrees(r) for r in rotation_l]
+        (pitch_l, yaw_l, roll_l) = np.array(rotation_degrees_l)
+        roll_l = -roll_l
+        
+        rotation_r = self.eye_r_1.rotation_euler
+        rotation_degrees_r = [m.degrees(r) for r in rotation_r]
+        (pitch_r, yaw_r, roll_r) = np.array(rotation_degrees_r)
+        roll_r = -roll_r
+        
         rotated_angles = self.rotate_angles(angles, pitch, yaw, roll)
+        rotated_angles_l = self.rotate_angles(angles, pitch_l, yaw_l, roll_l)
+        rotated_angles_r = self.rotate_angles(angles, pitch_r, yaw_r, roll_r)
 
         rot_points = self.rotate_points(np.array([
         [1, 0, 0], [0, 1, 0], [0, 0, -1]
     ]), np.array(rotated_angles))[:, :2]
+        rot_points_l = self.rotate_points(np.array([
+        [1, 0, 0], [0, 1, 0], [0, 0, -1]
+    ]), np.array(rotated_angles_l))[:, :2]
+        rot_points_r = self.rotate_points(np.array([
+        [1, 0, 0], [0, 1, 0], [0, 0, -1]
+    ]), np.array(rotated_angles_r))[:, :2]
+        
+#        angles = [m.degrees(r) for r in rotation]
         
         
-        pos = np.array([100,100], dtype=int)
+        
+        pos = np.array([500,500], dtype=int)
         axis = (line_size*rot_points).astype(int)
+        
+        pos_l = np.array([100,200], dtype=int)
+        axis_r = (line_size*rot_points_l).astype(int)
+        
+        pos_r = np.array([200,200], dtype=int)
+        axis_r = (line_size*rot_points_r).astype(int)
 
         
         for (point, color) in zip(axis, [RED, GREEN, BLUE]):
             image = cv2.line(image, tuple(pos), tuple(pos + point), color, thickness)
+            image = cv2.line(image, tuple(pos_l), tuple(pos_l + point), color, thickness)
+            image = cv2.line(image, tuple(pos_r), tuple(pos_r + point), color, thickness)
             
 
         return image
@@ -454,7 +480,7 @@ class Render:
                                                 report.write('Progress: ' + str(render_counter) + ' Rotation: ' + str(axis_rotation) + ' z_d: ' + str(d / 10) + '\n')
                                                 
                                                 
-                                                if a > 5:
+                                                if a > 100:
                                                     exit()
                                                 a += 1
                                 
