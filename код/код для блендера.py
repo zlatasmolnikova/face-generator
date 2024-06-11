@@ -352,10 +352,10 @@ class Render:
         
         
         pos = np.array([500,500], dtype=int)
-        axis = (line_size*rot_points).astype(int)
+        axis = (100*rot_points).astype(int)
         
         pos_l = np.array([100,200], dtype=int)
-        axis_r = (line_size*rot_points_l).astype(int)
+        axis_l = (line_size*rot_points_l).astype(int)
         
         pos_r = np.array([200,200], dtype=int)
         axis_r = (line_size*rot_points_r).astype(int)
@@ -363,7 +363,9 @@ class Render:
         
         for (point, color) in zip(axis, [RED, GREEN, BLUE]):
             image = cv2.line(image, tuple(pos), tuple(pos + point), color, thickness)
+        for (point, color) in zip(axis_l, [RED, GREEN, BLUE]):
             image = cv2.line(image, tuple(pos_l), tuple(pos_l + point), color, thickness)
+        for (point, color) in zip(axis_r, [RED, GREEN, BLUE]):
             image = cv2.line(image, tuple(pos_r), tuple(pos_r + point), color, thickness)
             
 
@@ -414,26 +416,28 @@ class Render:
                         for gamma in range(self.gamma_limits[0], self.gamma_limits[1] + 1,
                                            rotation_step):  # Петля для изменения угла гаммы
                                                
-                            for angle_x in range(-7, 10, 9):
-                                self.eye_l.rotation_euler.x = m.radians(angle_x)
-                                self.eye_r.rotation_euler.x = m.radians(angle_x)
-                                self.eye_l_1.rotation_euler.x = m.radians(angle_x)
-                                self.eye_r_1.rotation_euler.x = m.radians(angle_x)
-
-                                for angle_z in range(345, 375, 15):
-                                    self.eye_l.rotation_euler.z = m.radians(angle_z)
-                                    self.eye_r.rotation_euler.z = m.radians(angle_z)
-                                    self.eye_l_1.rotation_euler.z = m.radians(angle_z)
-                                    self.eye_r_1.rotation_euler.z = m.radians(angle_z)
+                            
                              
-                                    for x in range(-20, 20, 15):
-                                        self.face.rotation_euler.x = m.radians(x)
+                            for x in range(-20, 20, 15):
+                                self.face.rotation_euler.x = m.radians(x)
+                                
+                                for y in range(-10, 10, 7):
+                                    self.face.rotation_euler.y = m.radians(y)
+                                    
+                                    for z in range(-20, 20, 15):
+                                        self.face.rotation_euler.z = m.radians(z)
                                         
-                                        for y in range(-10, 10, 7):
-                                            self.face.rotation_euler.y = m.radians(y)
-                                            
-                                            for z in range(-20, 20, 15):
-                                                self.face.rotation_euler.z = m.radians(z)
+                                        for angle_x in range(-7, 10, 9):
+                                            self.eye_l.rotation_euler.x = m.radians(angle_x)
+                                            self.eye_r.rotation_euler.x = m.radians(angle_x)
+                                            self.eye_l_1.rotation_euler.x = m.radians(angle_x)
+                                            self.eye_r_1.rotation_euler.x = m.radians(angle_x)
+
+                                            for angle_z in range(345, 375, 15):
+                                                self.eye_l.rotation_euler.z = m.radians(angle_z)
+                                                self.eye_r.rotation_euler.z = m.radians(angle_z)
+                                                self.eye_l_1.rotation_euler.z = m.radians(angle_z)
+                                                self.eye_r_1.rotation_euler.z = m.radians(angle_z)
              
                                                 render_counter += 1  # Обновить счетчик
                                                 
@@ -480,7 +484,7 @@ class Render:
                                                 report.write('Progress: ' + str(render_counter) + ' Rotation: ' + str(axis_rotation) + ' z_d: ' + str(d / 10) + '\n')
                                                 
                                                 
-                                                if a > 100:
+                                                if a > 10:
                                                     exit()
                                                 a += 1
                                 
