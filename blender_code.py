@@ -6,7 +6,6 @@ import cv2
 import rpycocotools.anns
 from rpycocotools import mask
 import bpycv
-import cv2
 import json
 import datetime
 import os
